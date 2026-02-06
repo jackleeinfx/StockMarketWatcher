@@ -53,8 +53,20 @@ function init() {
         cb.addEventListener('change', renderMainChart);
     });
 
-    // Initial Load
-    loadData();
+    // Show Welcome Message
+    showInitialState();
+}
+
+function showInitialState() {
+    // Gauge Placeholder
+    els.status.textContent = "";
+    document.getElementById('gauge-chart').innerHTML =
+        '<div style="text-align:center; padding-top:100px; color:#666;"><h3>Waiting for data...</h3></div>';
+
+    // Main Chart Placeholder
+    document.getElementById('main-chart').innerHTML =
+        '<div style="display:flex; justify-content:center; align-items:center; height:100%; color:#666; font-size:1.2rem;">' +
+        '<p>Select an asset or click <strong>Refresh Data</strong> to begin analysis.</p></div>';
 }
 
 function updateTickerOptions() {
@@ -335,7 +347,7 @@ function renderMainChart() {
     // Row 3: MACD (Optional)
 
     const layout = {
-        dragmode: 'zoom',
+        dragmode: 'pan', // Default to pan for easier navigation
         showlegend: true,
         xaxis: { rangeslider: { visible: false }, type: 'date', gridcolor: '#333' },
         yaxis: { autorange: true, gridcolor: '#333', title: 'Price' },
@@ -428,7 +440,7 @@ function renderMainChart() {
         };
     }
 
-    Plotly.newPlot('main-chart', traces, layout, {displayModeBar: false, responsive: true});
+    Plotly.newPlot('main-chart', traces, layout, {displayModeBar: false, responsive: true, scrollZoom: true});
 }
 
 // Start
