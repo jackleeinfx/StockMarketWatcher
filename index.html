@@ -3,108 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Market Observer</title>
+    <title>Prime Market Terminal</title>
     <link rel="stylesheet" href="style.css">
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <!-- Technical Indicators -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/technicalindicators/3.1.0/browser.js"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <h2>Market Settings</h2>
 
-            <div class="control-group">
-                <label for="asset-class">Asset Class</label>
-                <select id="asset-class">
-                    <option value="indices">Indices (ETF)</option>
-                    <option value="futures">Futures</option>
+    <!-- Top Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <i class="fa-solid fa-layer-group"></i> PRIME<span>MARKET</span>
+        </div>
+
+        <div class="nav-search">
+            <div class="search-wrapper">
+                <select id="asset-type-select">
+                    <option value="indices">Indices</option>
+                    <option value="tech">Tech</option>
                     <option value="crypto">Crypto</option>
-                    <option value="tech">Big Tech</option>
-                    <option value="custom">Custom</option>
+                    <option value="futures">Futures</option>
                 </select>
-            </div>
-
-            <div class="control-group" id="ticker-group">
-                <label for="ticker-select">Symbol</label>
-                <select id="ticker-select"></select>
-                <input type="text" id="ticker-input" placeholder="Enter Symbol (e.g. SPY)" style="display: none;">
-            </div>
-
-            <hr>
-
-            <div class="control-group">
-                <label for="period">Range</label>
-                <select id="period">
-                    <option value="1mo">1 Month</option>
-                    <option value="3mo">3 Months</option>
-                    <option value="6mo">6 Months</option>
-                    <option value="1y" selected>1 Year</option>
-                    <option value="2y">2 Years</option>
-                    <option value="5y">5 Years</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label for="interval">Interval</label>
-                <select id="interval">
-                    <option value="1d">Daily</option>
-                    <option value="1wk">Weekly</option>
-                    <option value="1mo">Monthly</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label>Indicators</label>
-                <div class="checkbox-group">
-                    <label><input type="checkbox" value="sma20" checked> SMA 20</label>
-                    <label><input type="checkbox" value="sma50"> SMA 50</label>
-                    <label><input type="checkbox" value="ema12"> EMA 12</label>
-                    <label><input type="checkbox" value="bb"> Bollinger Bands</label>
-                    <label><input type="checkbox" value="rsi" checked> RSI</label>
-                    <label><input type="checkbox" value="macd"> MACD</label>
+                <div class="search-input-container">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="symbol-input" placeholder="Search symbol (e.g., NVDA)...">
                 </div>
+                <button id="search-btn">GO</button>
             </div>
+        </div>
 
-            <button id="refresh-btn">Refresh Data</button>
-        </aside>
+        <div class="nav-actions">
+            <!-- Could add theme toggle here -->
+        </div>
+    </nav>
 
-        <!-- Main Content -->
-        <main class="content">
-            <header>
-                <h1>📈 Market Observer</h1>
-                <div id="status-msg"></div>
-            </header>
+    <!-- Ticker Tape -->
+    <div class="ticker-tape-container">
+        <div class="ticker-tape-track" id="ticker-tape">
+            <!-- Items injected by JS -->
+            <div class="ticker-item">Loading Market Data...</div>
+        </div>
+    </div>
 
-            <!-- Fear & Greed Section -->
-            <section class="section-fg">
-                <div class="card fg-gauge">
-                    <h3>CNN Fear & Greed Index</h3>
-                    <div id="gauge-chart"></div>
-                </div>
-                <div class="card fg-history">
-                    <h3>Historical Context</h3>
-                    <ul id="fg-history-list">
-                        <li>Loading...</li>
-                    </ul>
-                    <p class="timestamp" id="fg-timestamp"></p>
-                </div>
-            </section>
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
 
-            <!-- Price Chart Section -->
-            <section class="section-chart">
-                <div class="card full-width">
-                    <h3 id="chart-title">Analysis</h3>
-                    <div id="metric-display">
-                        <span id="price-current">--</span>
-                        <span id="price-change">--</span>
+        <!-- Main Column: Chart -->
+        <main class="main-column">
+            <div class="card chart-card">
+                <div class="card-header">
+                    <div class="chart-controls-left">
+                        <h2 id="chart-symbol">LOADING...</h2>
+                        <span id="chart-time-display">--</span>
                     </div>
-                    <div id="main-chart"></div>
+                    <div class="chart-controls-right">
+                        <div class="time-range-group" id="time-range-selector">
+                            <button data-range="1mo" data-interval="1d" class="range-btn active">1M</button>
+                            <button data-range="3mo" data-interval="1d" class="range-btn">3M</button>
+                            <button data-range="6mo" data-interval="1wk" class="range-btn">6M</button>
+                            <button data-range="1y" data-interval="1wk" class="range-btn">1Y</button>
+                            <button data-range="5y" data-interval="1mo" class="range-btn">5Y</button>
+                        </div>
+                    </div>
                 </div>
-            </section>
+                <div class="chart-body" id="main-plot">
+                    <div class="empty-state">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <p>Select an asset to view analysis</p>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="indicator-toggles" id="indicator-controls">
+                        <label class="toggle-pill"><input type="checkbox" value="sma20" checked> SMA 20</label>
+                        <label class="toggle-pill"><input type="checkbox" value="sma50"> SMA 50</label>
+                        <label class="toggle-pill"><input type="checkbox" value="ema12"> EMA 12</label>
+                        <label class="toggle-pill"><input type="checkbox" value="bb"> Boll. Bands</label>
+                        <label class="toggle-pill"><input type="checkbox" value="rsi" checked> RSI</label>
+                        <label class="toggle-pill"><input type="checkbox" value="macd"> MACD</label>
+                    </div>
+                </div>
+            </div>
         </main>
+
+        <!-- Side Column: Stats & Info -->
+        <aside class="side-column">
+
+            <!-- Quote Card -->
+            <div class="card quote-card">
+                <div class="quote-header">
+                    <span class="quote-label">Current Price</span>
+                    <span class="live-badge">LIVE</span>
+                </div>
+                <div class="quote-price" id="quote-price">--</div>
+                <div class="quote-change" id="quote-change">--</div>
+            </div>
+
+            <!-- Key Stats -->
+            <div class="card stats-card">
+                <h3>Key Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Open</span>
+                        <span class="stat-value" id="stat-open">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">High</span>
+                        <span class="stat-value" id="stat-high">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Low</span>
+                        <span class="stat-value" id="stat-low">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Volume</span>
+                        <span class="stat-value" id="stat-vol">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fear & Greed -->
+            <div class="card fg-card">
+                <h3>Market Sentiment</h3>
+                <div class="fg-gauge-container" id="fg-gauge"></div>
+                <div class="fg-details" id="fg-text">
+                    Loading Sentiment...
+                </div>
+                <div class="fg-history">
+                    <div class="history-item">
+                        <span>Yesterday</span>
+                        <span id="fg-prev">--</span>
+                    </div>
+                    <div class="history-item">
+                        <span>1 Week</span>
+                        <span id="fg-week">--</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
     </div>
 
     <script src="app.js"></script>
