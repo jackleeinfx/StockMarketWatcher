@@ -27,6 +27,13 @@ const els = {
     searchResults: document.getElementById('search-results'),
     searchBtn: document.getElementById('search-btn'),
 
+    // Mobile Search
+    mobileSearchTrigger: document.getElementById('mobile-search-trigger'),
+    searchOverlay: document.getElementById('search-overlay'),
+    mobileSymbolInput: document.getElementById('mobile-symbol-input'),
+    closeSearchBtn: document.getElementById('close-search-btn'),
+    mobileSearchResults: document.getElementById('mobile-search-results'),
+
     // Chart
     chartSymbol: document.getElementById('chart-symbol'),
     pinBtn: document.getElementById('pin-btn'),
@@ -68,7 +75,12 @@ async function init() {
     els.symbolInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleSearch();
     });
-    els.symbolInput.addEventListener('input', handleSearchInput);
+    els.symbolInput.addEventListener('input', (e) => handleSearchInput(e, els.searchResults));
+
+    // Mobile Search Events
+    els.mobileSearchTrigger.addEventListener('click', openMobileSearch);
+    els.closeSearchBtn.addEventListener('click', closeMobileSearch);
+    els.mobileSymbolInput.addEventListener('input', (e) => handleSearchInput(e, els.mobileSearchResults));
 
     // Hide dropdown on outside click
     document.addEventListener('click', (e) => {
@@ -102,6 +114,20 @@ async function init() {
         cb.addEventListener('change', updateIndicators);
     });
 }
+
+// --- Mobile Search Logic ---
+
+function openMobileSearch() {
+    els.searchOverlay.classList.add('active');
+    els.mobileSymbolInput.focus();
+}
+
+function closeMobileSearch() {
+    els.searchOverlay.classList.remove('active');
+    els.mobileSymbolInput.value = '';
+    els.mobileSearchResults.innerHTML = '';
+}
+
 
 // --- Data Fetching ---
 
@@ -182,37 +208,38 @@ async function loadFearAndGreed() {
 
 // --- Search & Watchlist ---
 
-function handleSearchInput(e) {
+function handleSearchInput(e, resultsContainer) {
     const val = e.target.value.trim();
 
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
 
     if (val.length < 1) {
-        els.searchResults.classList.remove('active');
+        resultsContainer.classList.remove('active');
+        resultsContainer.innerHTML = ''; // Clear for mobile
         return;
     }
 
     searchDebounceTimer = setTimeout(() => {
-        fetchSearchResults(val);
+        fetchSearchResults(val, resultsContainer);
     }, 300);
 }
 
-async function fetchSearchResults(query) {
+async function fetchSearchResults(query, resultsContainer) {
     const url = `${YAHOO_SEARCH_URL}?q=${query}&quotesCount=5&newsCount=0`;
     try {
         const data = await fetchJson(url);
         const quotes = data.quotes || [];
-        renderSearchResults(quotes);
+        renderSearchResults(quotes, resultsContainer);
     } catch (e) {
         console.error("Search failed", e);
     }
 }
 
-function renderSearchResults(quotes) {
-    els.searchResults.innerHTML = "";
+function renderSearchResults(quotes, container) {
+    container.innerHTML = "";
 
     if (quotes.length === 0) {
-        els.searchResults.classList.remove('active');
+        container.classList.remove('active');
         return;
     }
 
@@ -229,16 +256,20 @@ function renderSearchResults(quotes) {
         item.addEventListener('click', () => {
             selectSymbol(q.symbol);
         });
-        els.searchResults.appendChild(item);
+        container.appendChild(item);
     });
 
-    els.searchResults.classList.add('active');
+    container.classList.add('active');
 }
 
 function selectSymbol(sym) {
     appState.symbol = sym;
     els.symbolInput.value = sym;
     els.searchResults.classList.remove('active');
+
+    // Close mobile search if open
+    closeMobileSearch();
+
     loadMainChart();
 }
 
@@ -510,7 +541,7 @@ function renderChart(activeIndicators, indData) {
         font: { color: '#8f9bba', family: 'var(--font-family)' },
         grid: { rows: 1, columns: 1, pattern: 'independent' },
         showlegend: false, // Cleaner look
-        margin: { l: 50, r: 40, t: 20, b: 40 },
+        margin: { l: 40, r: 40, t: 20, b: 40 }, // Slimmer margins
         xaxis: { type: 'date', rangeslider: {visible: false}, gridcolor: '#2b3542' },
         yaxis: { autorange: true, gridcolor: '#2b3542', tickformat: '.2f' },
         hovermode: 'x unified'

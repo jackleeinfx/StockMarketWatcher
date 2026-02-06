@@ -20,7 +20,7 @@
             <i class="fa-solid fa-layer-group"></i> PRIME<span>MARKET</span>
         </div>
 
-        <div class="nav-search">
+        <div class="nav-search desktop-only">
             <div class="search-wrapper">
                 <select id="asset-type-select">
                     <option value="indices">Indices</option>
@@ -30,7 +30,7 @@
                 </select>
                 <div class="search-input-container">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="symbol-input" placeholder="Search symbol (e.g., NVDA)..." autocomplete="off">
+                    <input type="text" id="symbol-input" placeholder="Search symbol..." autocomplete="off">
                 </div>
                 <!-- Autocomplete Dropdown -->
                 <div id="search-results" class="search-results"></div>
@@ -39,10 +39,24 @@
             </div>
         </div>
 
-        <div class="nav-actions">
-            <!-- Could add theme toggle here -->
+        <div class="nav-actions mobile-only">
+            <button id="mobile-search-trigger" class="icon-btn">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
         </div>
     </nav>
+
+    <!-- Mobile Search Overlay -->
+    <div id="search-overlay" class="search-overlay">
+        <div class="overlay-header">
+            <div class="overlay-input-wrapper">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="mobile-symbol-input" placeholder="Search Stocks, Crypto..." autocomplete="off">
+            </div>
+            <button id="close-search-btn">Cancel</button>
+        </div>
+        <div id="mobile-search-results" class="mobile-results-list"></div>
+    </div>
 
     <!-- Ticker Tape -->
     <div class="ticker-tape-container">
