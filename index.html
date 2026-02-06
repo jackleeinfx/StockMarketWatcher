@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Observer</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Technical Indicators -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/technicalindicators/3.1.0/browser.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h2>Market Settings</h2>
+
+            <div class="control-group">
+                <label for="asset-class">Asset Class</label>
+                <select id="asset-class">
+                    <option value="indices">Indices (ETF)</option>
+                    <option value="futures">Futures</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="tech">Big Tech</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="ticker-group">
+                <label for="ticker-select">Symbol</label>
+                <select id="ticker-select"></select>
+                <input type="text" id="ticker-input" placeholder="Enter Symbol (e.g. SPY)" style="display: none;">
+            </div>
+
+            <hr>
+
+            <div class="control-group">
+                <label for="period">Range</label>
+                <select id="period">
+                    <option value="1mo">1 Month</option>
+                    <option value="3mo">3 Months</option>
+                    <option value="6mo">6 Months</option>
+                    <option value="1y" selected>1 Year</option>
+                    <option value="2y">2 Years</option>
+                    <option value="5y">5 Years</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="interval">Interval</label>
+                <select id="interval">
+                    <option value="1d">Daily</option>
+                    <option value="1wk">Weekly</option>
+                    <option value="1mo">Monthly</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Indicators</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" value="sma20" checked> SMA 20</label>
+                    <label><input type="checkbox" value="sma50"> SMA 50</label>
+                    <label><input type="checkbox" value="ema12"> EMA 12</label>
+                    <label><input type="checkbox" value="bb"> Bollinger Bands</label>
+                    <label><input type="checkbox" value="rsi" checked> RSI</label>
+                    <label><input type="checkbox" value="macd"> MACD</label>
+                </div>
+            </div>
+
+            <button id="refresh-btn">Refresh Data</button>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="content">
+            <header>
+                <h1>📈 Market Observer</h1>
+                <div id="status-msg"></div>
+            </header>
+
+            <!-- Fear & Greed Section -->
+            <section class="section-fg">
+                <div class="card fg-gauge">
+                    <h3>CNN Fear & Greed Index</h3>
+                    <div id="gauge-chart"></div>
+                </div>
+                <div class="card fg-history">
+                    <h3>Historical Context</h3>
+                    <ul id="fg-history-list">
+                        <li>Loading...</li>
+                    </ul>
+                    <p class="timestamp" id="fg-timestamp"></p>
+                </div>
+            </section>
+
+            <!-- Price Chart Section -->
+            <section class="section-chart">
+                <div class="card full-width">
+                    <h3 id="chart-title">Analysis</h3>
+                    <div id="metric-display">
+                        <span id="price-current">--</span>
+                        <span id="price-change">--</span>
+                    </div>
+                    <div id="main-chart"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
