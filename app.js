@@ -2,6 +2,7 @@
 const PROXY_URL = "https://api.allorigins.win/raw?url=";
 const CNN_FG_URL = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata";
 const YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/";
+const YAHOO_SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search";
 
 // Ticker Tape Assets
 const TAPE_TICKERS = ["SPY", "QQQ", "DIA", "BTC-USD", "ETH-USD", "GC=F", "CL=F"];
@@ -12,21 +13,29 @@ let appState = {
     range: "1mo",
     interval: "1d",
     chartData: null,
-    indicators: []
+    indicators: [],
+    pinned: []
 };
+
+let searchDebounceTimer = null;
 
 // DOM Elements
 const els = {
     tape: document.getElementById('ticker-tape'),
     assetSelect: document.getElementById('asset-type-select'),
     symbolInput: document.getElementById('symbol-input'),
+    searchResults: document.getElementById('search-results'),
     searchBtn: document.getElementById('search-btn'),
 
     // Chart
     chartSymbol: document.getElementById('chart-symbol'),
+    pinBtn: document.getElementById('pin-btn'),
     timeDisplay: document.getElementById('chart-time-display'),
     timeButtons: document.querySelectorAll('.range-btn'),
     indicatorChecks: document.querySelectorAll('#indicator-controls input'),
+
+    // Watchlist
+    watchlistContainer: document.getElementById('watchlist-container'),
 
     // Quote
     quotePrice: document.getElementById('quote-price'),
@@ -47,6 +56,7 @@ const els = {
 
 // --- Initialization ---
 async function init() {
+    loadWatchlist();
     initTickerTape();
     loadFearAndGreed();
 
@@ -58,21 +68,29 @@ async function init() {
     els.symbolInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleSearch();
     });
+    els.symbolInput.addEventListener('input', handleSearchInput);
+
+    // Hide dropdown on outside click
+    document.addEventListener('click', (e) => {
+        if (!els.symbolInput.contains(e.target) && !els.searchResults.contains(e.target)) {
+            els.searchResults.classList.remove('active');
+        }
+    });
+
+    // Pin Button
+    els.pinBtn.addEventListener('click', togglePin);
 
     // Asset Select Shortcut
     els.assetSelect.addEventListener('change', () => {
-        // Just focus search, optional: auto-populate symbols
         els.symbolInput.focus();
     });
 
     // Time Range
     els.timeButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Update UI
             els.timeButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            // Update State
             appState.range = btn.dataset.range;
             appState.interval = btn.dataset.interval;
             loadMainChart();
@@ -95,56 +113,53 @@ async function fetchJson(url) {
 }
 
 async function initTickerTape() {
-    els.tape.innerHTML = ""; // clear loading
+    els.tape.innerHTML = "";
 
-    // Fetch one by one to avoid complexity, or try batch if possible?
-    // Yahoo Chart API handles single symbol.
-    // We will do parallel fetch.
+    // Batch fetch using Quote API v7 to avoid rate limits
+    const symbols = TAPE_TICKERS.join(',');
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`;
 
-    const promises = TAPE_TICKERS.map(sym =>
-        fetchJson(`${YAHOO_CHART_URL}${sym}?range=1d&interval=1d`)
-            .then(data => {
-                const meta = data.chart.result[0].meta;
-                // Fallback for previous close if missing (e.g. crypto sometimes)
-                const prev = meta.previousClose || meta.chartPreviousClose || meta.regularMarketPrice;
-                return {
-                    symbol: sym,
-                    price: meta.regularMarketPrice,
-                    prev: prev
-                };
-            })
-            .catch(e => null)
-    );
+    try {
+        const data = await fetchJson(url);
+        const results = data.quoteResponse.result || [];
 
-    const results = await Promise.all(promises);
+        // Duplicate list to make scrolling look continuous if list is short
+        const displayList = [...results, ...results];
 
-    // Duplicate list to make scrolling look continuous if list is short
-    const displayList = [...results, ...results];
+        displayList.forEach(item => {
+            const price = item.regularMarketPrice;
+            const prev = item.regularMarketPreviousClose || price;
 
-    displayList.forEach(item => {
-        if (!item) return;
+            let change = 0;
+            let pct = 0;
+            if (prev && prev > 0) {
+                change = price - prev;
+                pct = (change / prev) * 100;
+            }
 
-        let change = 0;
-        let pct = 0;
+            const colorClass = change >= 0 ? "up" : "down";
+            const sign = change >= 0 ? "+" : "";
 
-        if (item.prev && item.prev > 0) {
-            change = item.price - item.prev;
-            pct = (change / item.prev) * 100;
-        }
+            const div = document.createElement('div');
+            div.className = 'ticker-item';
 
-        const colorClass = change >= 0 ? "up" : "down";
-        const sign = change >= 0 ? "+" : "";
+            // Use textContent where possible for safety
+            const symSpan = document.createElement('span');
+            symSpan.textContent = item.symbol + " ";
 
-        const div = document.createElement('div');
-        div.className = 'ticker-item';
-        div.innerHTML = `
-            ${item.symbol}
-            <span class="${colorClass}">
-                ${item.price.toFixed(2)} (${sign}${pct.toFixed(2)}%)
-            </span>
-        `;
-        els.tape.appendChild(div);
-    });
+            const valSpan = document.createElement('span');
+            valSpan.className = colorClass;
+            valSpan.textContent = `${price.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+
+            div.appendChild(symSpan);
+            div.appendChild(valSpan);
+            els.tape.appendChild(div);
+        });
+
+    } catch (e) {
+        console.error("Ticker Tape Error:", e);
+        els.tape.innerHTML = '<div class="ticker-item" style="color:#666">Market Data Unavailable</div>';
+    }
 }
 
 async function loadFearAndGreed() {
@@ -165,25 +180,173 @@ async function loadFearAndGreed() {
     }
 }
 
-async function handleSearch() {
-    const val = els.symbolInput.value.trim().toUpperCase();
-    if (val) {
-        appState.symbol = val;
-        await loadMainChart();
+// --- Search & Watchlist ---
+
+function handleSearchInput(e) {
+    const val = e.target.value.trim();
+
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+
+    if (val.length < 1) {
+        els.searchResults.classList.remove('active');
+        return;
+    }
+
+    searchDebounceTimer = setTimeout(() => {
+        fetchSearchResults(val);
+    }, 300);
+}
+
+async function fetchSearchResults(query) {
+    const url = `${YAHOO_SEARCH_URL}?q=${query}&quotesCount=5&newsCount=0`;
+    try {
+        const data = await fetchJson(url);
+        const quotes = data.quotes || [];
+        renderSearchResults(quotes);
+    } catch (e) {
+        console.error("Search failed", e);
     }
 }
 
+function renderSearchResults(quotes) {
+    els.searchResults.innerHTML = "";
+
+    if (quotes.length === 0) {
+        els.searchResults.classList.remove('active');
+        return;
+    }
+
+    quotes.forEach(q => {
+        // Filter out irrelevant types if needed, generally Yahoo search is good
+        if (!q.symbol) return;
+
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        item.innerHTML = `
+            <span class="result-symbol">${q.symbol}</span>
+            <span class="result-name">${q.longname || q.shortname || ''}</span>
+        `;
+        item.addEventListener('click', () => {
+            selectSymbol(q.symbol);
+        });
+        els.searchResults.appendChild(item);
+    });
+
+    els.searchResults.classList.add('active');
+}
+
+function selectSymbol(sym) {
+    appState.symbol = sym;
+    els.symbolInput.value = sym;
+    els.searchResults.classList.remove('active');
+    loadMainChart();
+}
+
+async function handleSearch() {
+    const val = els.symbolInput.value.trim().toUpperCase();
+    if (val) {
+        selectSymbol(val);
+    }
+}
+
+function togglePin() {
+    const sym = appState.symbol;
+    const idx = appState.pinned.indexOf(sym);
+
+    if (idx === -1) {
+        appState.pinned.push(sym);
+    } else {
+        appState.pinned.splice(idx, 1);
+    }
+
+    saveWatchlist();
+    renderWatchlist();
+    updatePinButton();
+}
+
+function updatePinButton() {
+    const isPinned = appState.pinned.includes(appState.symbol);
+    if (isPinned) {
+        els.pinBtn.classList.add('active');
+        els.pinBtn.innerHTML = '<i class="fa-solid fa-star"></i>';
+    } else {
+        els.pinBtn.classList.remove('active');
+        els.pinBtn.innerHTML = '<i class="fa-regular fa-star"></i>';
+    }
+}
+
+function loadWatchlist() {
+    const saved = localStorage.getItem('prime_market_watchlist');
+    if (saved) {
+        try {
+            appState.pinned = JSON.parse(saved);
+        } catch(e) { appState.pinned = []; }
+    }
+    renderWatchlist();
+}
+
+function saveWatchlist() {
+    localStorage.setItem('prime_market_watchlist', JSON.stringify(appState.pinned));
+}
+
+function renderWatchlist() {
+    els.watchlistContainer.innerHTML = "";
+
+    if (appState.pinned.length === 0) {
+        els.watchlistContainer.innerHTML = '<div class="empty-watchlist">No pinned items</div>';
+        return;
+    }
+
+    appState.pinned.forEach(sym => {
+        const el = document.createElement('div');
+        el.className = 'watchlist-item';
+        el.innerHTML = `
+            <span>${sym}</span>
+            <span class="watchlist-remove">&times;</span>
+        `;
+
+        // Click on item -> Load
+        el.addEventListener('click', (e) => {
+            if (e.target.classList.contains('watchlist-remove')) return;
+            selectSymbol(sym);
+        });
+
+        // Click on X -> Remove
+        el.querySelector('.watchlist-remove').addEventListener('click', (e) => {
+            e.stopPropagation();
+            appState.pinned = appState.pinned.filter(s => s !== sym);
+            saveWatchlist();
+            renderWatchlist();
+            updatePinButton();
+        });
+
+        els.watchlistContainer.appendChild(el);
+    });
+}
+
+// --- Chart Logic ---
+
 async function loadMainChart() {
     els.chartSymbol.innerHTML = `<span style="color:var(--text-muted)">LOADING...</span>`;
+    updatePinButton(); // Update immediately for current symbol context
 
     const { symbol, range, interval } = appState;
     const url = `${YAHOO_CHART_URL}${symbol}?range=${range}&interval=${interval}`;
 
     try {
         const data = await fetchJson(url);
+
+        if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+            throw new Error("No data");
+        }
+
         const res = data.chart.result[0];
         const quote = res.indicators.quote[0];
         const timestamps = res.timestamp;
+
+        if (!timestamps || timestamps.length === 0) {
+             throw new Error("Empty timestamps");
+        }
 
         // Process Data
         const cleanData = timestamps.map((t, i) => ({
@@ -200,20 +363,22 @@ async function loadMainChart() {
         // Update UI Header
         els.chartSymbol.textContent = symbol;
         const last = cleanData[cleanData.length-1];
-        els.timeDisplay.textContent = last.time.toLocaleString();
+        if (last) {
+            els.timeDisplay.textContent = last.time.toLocaleString();
 
-        // Update Quote Card
-        updateQuoteCard(cleanData);
-        updateStatsCard(cleanData);
+            // Update Quote Card
+            updateQuoteCard(cleanData);
+            updateStatsCard(cleanData);
 
-        // Calc Indicators & Render
-        // Wrap in try-catch to prevent chart crash if indicators fail (e.g. not enough data)
-        try {
-            updateIndicators();
-        } catch (indError) {
-            console.error("Indicator Error:", indError);
-            // Fallback: render basic chart without indicators
-            renderChart([], {});
+            // Calc Indicators & Render
+            try {
+                updateIndicators();
+            } catch (indError) {
+                console.error("Indicator Error:", indError);
+                renderChart([], {});
+            }
+        } else {
+             throw new Error("No valid price data");
         }
 
     } catch (e) {
@@ -226,8 +391,13 @@ async function loadMainChart() {
 function updateQuoteCard(data) {
     const cur = data[data.length-1];
     const prev = data[data.length-2];
-    const change = cur.close - prev.close;
-    const pct = (change / prev.close) * 100;
+    let change = 0;
+    let pct = 0;
+
+    if (prev) {
+        change = cur.close - prev.close;
+        pct = (change / prev.close) * 100;
+    }
 
     els.quotePrice.textContent = cur.close.toFixed(2);
     els.quoteChange.innerHTML = `
@@ -271,23 +441,27 @@ function updateIndicators() {
         return Array(diff).fill(null).concat(res);
     };
 
+    // Ensure we use the correct global variable (lowercase in browser)
+    const TI = window.technicalindicators || window.technicalIndicators;
+    if (!TI) throw new Error("Technical Indicators library not loaded");
+
     if (active.includes('sma20'))
-        indicators.sma20 = align(technicalIndicators.SMA.calculate({period: 20, values: closes}));
+        indicators.sma20 = align(TI.SMA.calculate({period: 20, values: closes}));
     if (active.includes('sma50'))
-        indicators.sma50 = align(technicalIndicators.SMA.calculate({period: 50, values: closes}));
+        indicators.sma50 = align(TI.SMA.calculate({period: 50, values: closes}));
     if (active.includes('ema12'))
-        indicators.ema12 = align(technicalIndicators.EMA.calculate({period: 12, values: closes}));
+        indicators.ema12 = align(TI.EMA.calculate({period: 12, values: closes}));
     if (active.includes('bb')) {
-        const bb = technicalIndicators.BollingerBands.calculate({period: 20, stdDev: 2, values: closes});
+        const bb = TI.BollingerBands.calculate({period: 20, stdDev: 2, values: closes});
         // bb is array of objects
         const diff = closes.length - bb.length;
         const pad = Array(diff).fill({upper:null, lower:null});
         indicators.bb = pad.concat(bb);
     }
     if (active.includes('rsi'))
-        indicators.rsi = align(technicalIndicators.RSI.calculate({period: 14, values: closes}));
+        indicators.rsi = align(TI.RSI.calculate({period: 14, values: closes}));
     if (active.includes('macd')) {
-        const m = technicalIndicators.MACD.calculate({values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, SimpleMAOscillator: false, SimpleMASignal: false});
+        const m = TI.MACD.calculate({values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, SimpleMAOscillator: false, SimpleMASignal: false});
         const diff = closes.length - m.length;
         const pad = Array(diff).fill({MACD:null, signal:null, histogram:null});
         indicators.macd = pad.concat(m);

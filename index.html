@@ -30,8 +30,11 @@
                 </select>
                 <div class="search-input-container">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="symbol-input" placeholder="Search symbol (e.g., NVDA)...">
+                    <input type="text" id="symbol-input" placeholder="Search symbol (e.g., NVDA)..." autocomplete="off">
                 </div>
+                <!-- Autocomplete Dropdown -->
+                <div id="search-results" class="search-results"></div>
+
                 <button id="search-btn">GO</button>
             </div>
         </div>
@@ -57,7 +60,12 @@
             <div class="card chart-card">
                 <div class="card-header">
                     <div class="chart-controls-left">
-                        <h2 id="chart-symbol">LOADING...</h2>
+                        <div class="symbol-header-row">
+                            <h2 id="chart-symbol">LOADING...</h2>
+                            <button id="pin-btn" class="pin-btn" title="Pin to Watchlist">
+                                <i class="fa-regular fa-star"></i>
+                            </button>
+                        </div>
                         <span id="chart-time-display">--</span>
                     </div>
                     <div class="chart-controls-right">
@@ -91,6 +99,15 @@
 
         <!-- Side Column: Stats & Info -->
         <aside class="side-column">
+
+            <!-- Watchlist -->
+            <div class="card watchlist-card">
+                <h3>Watchlist</h3>
+                <div class="watchlist-grid" id="watchlist-container">
+                    <!-- Items injected by JS -->
+                    <div class="empty-watchlist">No pinned items</div>
+                </div>
+            </div>
 
             <!-- Quote Card -->
             <div class="card quote-card">

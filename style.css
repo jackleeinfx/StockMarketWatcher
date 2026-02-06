@@ -70,7 +70,7 @@ body {
     background-color: var(--bg-input);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    overflow: hidden;
+    position: relative; /* For absolute dropdown */
     height: 36px;
 }
 
@@ -121,10 +121,58 @@ body {
     font-weight: 600;
     cursor: pointer;
     font-size: 0.85rem;
+    border-radius: 0 5px 5px 0;
 }
 
 #search-btn:hover {
     background-color: var(--accent-hover);
+}
+
+/* Search Autocomplete */
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    z-index: 100;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none; /* Hidden by default */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.search-results.active {
+    display: block;
+}
+
+.search-result-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background-color: var(--bg-input);
+}
+
+.result-symbol {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.result-name {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
 }
 
 /* --- Ticker Tape --- */
@@ -213,9 +261,36 @@ body {
     align-items: center;
 }
 
+.symbol-header-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .chart-controls-left h2 {
     font-size: 1.5rem;
     margin-bottom: 4px;
+}
+
+.pin-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.pin-btn:hover {
+    color: var(--text-secondary);
+}
+
+.pin-btn.active {
+    color: #fbbf24; /* Gold */
+}
+
+.pin-btn.active i {
+    font-weight: 900; /* Solid star */
 }
 
 #chart-time-display {
@@ -302,6 +377,59 @@ body {
 
 
 /* --- Sidebar Cards --- */
+
+/* Watchlist */
+.watchlist-card {
+    min-height: 100px;
+}
+
+.watchlist-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 16px 16px;
+}
+
+.empty-watchlist {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+}
+
+.watchlist-item {
+    background-color: var(--bg-input);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.watchlist-item:hover {
+    border-color: var(--border-color);
+}
+
+.watchlist-remove {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 2px;
+}
+
+.watchlist-remove:hover {
+    color: var(--color-down);
+}
+
+
+/* Quote */
 .quote-card {
     padding: 20px;
     min-height: 120px;
